@@ -40,6 +40,8 @@
     <a href="https://github.com/mrdoob/three.js/tree/master/examples/models/mmd#readme" target="_blank" rel="noopener">MMD Assets license</a><br /> Copyright
     <a href="http://www.geocities.jp/higuchuu4/index_e.htm" target="_blank" rel="noopener">Model Data</a>
     <a href="http://www.nicovideo.jp/watch/sm13147122" target="_blank" rel="noopener">Dance Data</a>
+    <h3>座標參考：初音未來身高 158 cm</h3>
+    <h3>速度:<span id="speed">0</span> 公尺/秒, 位移:<span id="displacement">0</span> 公尺</h3>
   </div>
 
   <script src="three.min.js"></script>
@@ -58,26 +60,20 @@
   <script src="Detector.js"></script>
   <script src="stats.min.js"></script>
   <script src="dat.gui.min.js"></script>
-  <script src="jquery-3.2.1.slim.min.js"></script>
 
   <script>
     //by Florencea Bear
-    let gf = 20;
-    let gg = 0;
-
-    let globala = 10;
-    let a = 0;
-    let ny = -10;
-
-    //end
+    let animationFrameCount = 0;
+    let acceleration = 0;
+    let meshPositionY = -10;
 
     var container, stats;
 
     var mesh, camera, scene, renderer, effect;
     var helper, ikHelper, physicsHelper;
 
-    var mouseX = 0,
-      mouseY = 0;
+    var mouseX = 0;
+    var mouseY = 0;
 
     var windowHalfX = window.innerWidth / 2;
     var windowHalfY = window.innerHeight / 2;
@@ -200,16 +196,15 @@
       }
 
       function initGui() {
-
-        var api = {
+	//by Florencea Bear
+        const api = {
           '加速度': 9.8
         };
 
         var gui = new dat.GUI();
 
         gui.add(api, '加速度', 5.0, 15.0).onChange(function() {
-          a = $('.c input').val();
-          aFlag = true;
+          acceleration = document.querySelector('.c input').value;
           clock.stop();
           clock.start();
         });
@@ -229,40 +224,46 @@
 
     }
 
-    //
-
     function animate() {
       requestAnimationFrame(animate);
       stats.begin();
-      render(mesh);
+      render();
       stats.end();
 
     }
 
-    function render() {
-      let g = 9.8;
-      let fa = a - g;
-      helper.animate(clock.getDelta());
-      let dt2;
-      if (gg > 3) {
-        dt2 = Math.pow(clock.elapsedTime, 2);
-        if (fa < 0 && ny > -10) {
-          console.log('down');
-          ny += (fa * dt2) / 2;
-        } else if (fa >= 0) {
-          ny += (fa * dt2) / 2;
-        } else {
-          ny = -10;
+    //by Florencea Bear
+    function updateMeshPositionY() {
+      const gravity = 9.8;
+      const finalAcceleration = acceleration - gravity;
+      const deltaTime = clock.elapsedTime;
+      const deltaTimeSquare = Math.pow(deltaTime, 2);
+      let speed = 0;
+       if (animationFrameCount > 3) {
+        if (meshPositionY > -10) {
+	  speed = finalAcceleration * deltaTime;
+          meshPositionY += (finalAcceleration * deltaTimeSquare) / 2;
+        } else if (meshPositionY === -10 && finalAcceleration > 0) {
+	  speed = 0;
+	  meshPositionY += (finalAcceleration * deltaTimeSquare) / 2;
+	} else {
+	  speed = 0;
+          meshPositionY = -10;
         }
       }
+      animationFrameCount++;
+      if (helper.meshes[0] !== undefined) {
+        helper.meshes[0].position.setY(meshPositionY);
+      }
+      document.getElementById('speed').innerHTML = speed;
+      document.getElementById('displacement').innerHTML = (meshPositionY + 10) / 10;
+    }
+
+    function render() {
+      helper.animate(clock.getDelta());
       if (physicsHelper !== undefined && physicsHelper.visible) physicsHelper.update();
       if (ikHelper !== undefined && ikHelper.visible) ikHelper.update();
-      (gf >= 0) ? console.log(a, ny): gf = false;
-      gf--;
-      gg++;
-      if (helper.meshes[0] !== undefined) {
-        helper.meshes[0].position.setY(ny);
-      }
+      updateMeshPositionY();
       effect.render(scene, camera);
     }
 
